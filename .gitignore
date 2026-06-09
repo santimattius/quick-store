@@ -1,0 +1,56 @@
+# ─── CMake ────────────────────────────────────────────────────────────────────
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+_deps/
+compile_commands.json
+
+# ─── Gradle / Android ─────────────────────────────────────────────────────────
+.gradle/
+local.properties
+**/build/
+**/.cxx/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ─── Kotlin Multiplatform ─────────────────────────────────────────────────────
+.kotlin/
+**/.kotlin/
+**/generated/
+
+# ─── Xcode / iOS ──────────────────────────────────────────────────────────────
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+xcuserdata/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ─── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─── IDE ──────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# ─── Test artifacts ───────────────────────────────────────────────────────────
+/tmp/qs_*
+
+# ─── Fuzzer corpus & artifacts ────────────────────────────────────────────────
+crash-*
+leak-*
+timeout-*
+fuzz-*
+corpus/
+
+# ─── Benchmark output ─────────────────────────────────────────────────────────
+*.csv
+*.json
