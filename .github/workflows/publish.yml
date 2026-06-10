@@ -1,0 +1,72 @@
+name: Publish
+on:
+  push:
+    tags: ['v*.*.*']
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install CMake
+        run: brew install cmake
+
+      # ---------- iOS / XCFramework ----------
+      - name: Build XCFramework
+        run: ./gradlew :quickstore:assembleQuickStoreReleaseXCFramework
+
+      - name: Zip XCFramework
+        run: |
+          cd quickstore/build/XCFrameworks/release
+          zip -r -y QuickStore.xcframework.zip QuickStore.xcframework
+
+      - name: Compute checksum
+        id: sum
+        run: |
+          CS=$(swift package compute-checksum \
+            quickstore/build/XCFrameworks/release/QuickStore.xcframework.zip)
+          echo "checksum=$CS" >> "$GITHUB_OUTPUT"
+
+      - name: Update Package.swift
+        run: |
+          sed -i '' -E "s#releases/download/v[^/]+/#releases/download/${GITHUB_REF_NAME}/#" Package.swift
+          sed -i '' -E "s/checksum: \"[^\"]*\"/checksum: \"${{ steps.sum.outputs.checksum }}\"/" Package.swift
+
+      - name: Commit Package.swift
+        run: |
+          git config user.name  "github-actions"
+          git config user.email "actions@github.com"
+          git add Package.swift
+          git commit -m "chore: update Package.swift for ${GITHUB_REF_NAME}" || echo "no change"
+          git push origin HEAD:main
+
+      - name: Upload XCFramework to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: quickstore/build/XCFrameworks/release/QuickStore.xcframework.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---------- Android / Maven Central ----------
+      # Runs AFTER iOS upload: if XCFramework fails, Maven Central is never published.
+      - name: Verify .so present in AAR
+        run: |
+          AAR=$(find quickstore/build/outputs/aar -name 'quickstore-release.aar' 2>/dev/null \
+            || find quickstore/build -name '*-release.aar' | head -n1)
+          unzip -l "$AAR" | grep 'jni/.*/libquickstore_jni.so' \
+            || (echo '::error::.so missing from AAR' && exit 1)
+
+      - name: Publish to Maven Central
+        run: ./gradlew :quickstore:publishAllPublicationsToMavenCentralRepository
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername:       ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword:       ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId:       ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey:         ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}

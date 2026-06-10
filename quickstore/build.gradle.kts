@@ -1,21 +1,29 @@
 import com.android.build.api.variant.KotlinMultiplatformAndroidComponentsExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {
     alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
-    android {
+    androidLibrary {
         namespace = "com.quickstore"
         compileSdk = 35
         minSdk = 24
     }
 
-    iosArm64()
-    iosSimulatorArm64()
-    iosX64()
+    // XCFramework output: quickstore/build/XCFrameworks/release/QuickStore.xcframework
+    val xcf = XCFramework("QuickStore")
+    listOf(iosArm64(), iosSimulatorArm64(), iosX64()).forEach {
+        it.binaries.framework {
+            baseName = "QuickStore"
+            isStatic = true
+            xcf.add(this)
+        }
+    }
 
     targets.withType<KotlinNativeTarget>().configureEach {
         val targetName = this.name
@@ -35,6 +43,12 @@ kotlin {
             implementation(project(":quickstore-native"))
         }
         iosMain.dependencies {}
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+        }
+        findByName("androidHostTest")?.dependencies {
+            implementation(libs.kotlin.test)
+        }
     }
 }
 
@@ -120,6 +134,49 @@ listOf(
             t.name.contains(targetName, ignoreCase = true)
         }.configureEach {
             dependsOn(cmakeBuild)
+        }
+        // Also wire framework link tasks (linkRelease/DebugFrameworkIos<Target>) so
+        // the static lib is available when Kotlin/Native links the framework slices.
+        tasks.matching { t ->
+            (t.name.contains("linkRelease", ignoreCase = true) ||
+             t.name.contains("linkDebug", ignoreCase = true)) &&
+            t.name.contains("Framework", ignoreCase = true) &&
+            t.name.contains(targetName, ignoreCase = true)
+        }.configureEach {
+            dependsOn(cmakeBuild)
+        }
+    }
+}
+
+mavenPublishing {
+    publishToMavenCentral()
+    signAllPublications()
+    coordinates(
+        groupId = "io.github.santimattius",
+        artifactId = "quickstore",
+        version = providers.gradleProperty("version").get()
+    )
+    pom {
+        name.set("QuickStore")
+        description.set("A fast, MMKV-compatible key-value store for Kotlin Multiplatform (Android + iOS)")
+        url.set("https://github.com/santimattius/quick-store")
+        licenses {
+            license {
+                name.set("The Apache Software License, Version 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+            }
+        }
+        developers {
+            developer {
+                id.set("santimattius")
+                name.set("Santiago Mattiauda")
+                url.set("https://github.com/santimattius")
+            }
+        }
+        scm {
+            url.set("https://github.com/santimattius/quick-store")
+            connection.set("scm:git:git://github.com/santimattius/quick-store.git")
+            developerConnection.set("scm:git:ssh://git@github.com/santimattius/quick-store.git")
         }
     }
 }
