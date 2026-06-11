@@ -55,15 +55,20 @@ jobs:
 
       # ---------- Android / Maven Central ----------
       # Runs AFTER iOS upload: if XCFramework fails, Maven Central is never published.
-      - name: Verify .so present in AAR
+      # The .so lives in :quickstore-native's AAR (transitive dep of :quickstore).
+      - name: Verify .so present in quickstore-native AAR
         run: |
-          AAR=$(find quickstore/build/outputs/aar -name 'quickstore-release.aar' 2>/dev/null \
-            || find quickstore/build -name '*-release.aar' | head -n1)
+          AAR=$(find quickstore-native/build/outputs/aar -name '*-release.aar' 2>/dev/null \
+            || find quickstore-native/build -name '*-release.aar' | head -n1)
           unzip -l "$AAR" | grep 'jni/.*/libquickstore_jni.so' \
-            || (echo '::error::.so missing from AAR' && exit 1)
+            || (echo '::error::.so missing from quickstore-native AAR' && exit 1)
 
+      # Both artifacts must be published at the same version.
+      # :quickstore-native provides the JNI bridge; :quickstore declares it as a transitive dep.
       - name: Publish to Maven Central
-        run: ./gradlew :quickstore:publishAllPublicationsToMavenCentralRepository
+        run: |
+          ./gradlew :quickstore-native:publishAllPublicationsToMavenCentralRepository \
+                    :quickstore:publishAllPublicationsToMavenCentralRepository
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername:       ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword:       ${{ secrets.MAVEN_CENTRAL_PASSWORD }}

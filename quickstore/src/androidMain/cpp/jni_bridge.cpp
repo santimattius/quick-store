@@ -341,4 +341,199 @@ Java_com_quickstore_QuickStore_nativeClear(JNIEnv* env, jobject /*thiz*/,
     throwIfError(env, st);
 }
 
+// ---------------------------------------------------------------------------
+// nativeGetLongs(handle: Long, keys: String[], outValues: long[], outFound: boolean[])
+// One JNI frame; loops kv_get_i64 over all keys. outValues[i]/outFound[i] are
+// written per key. KV_NOT_FOUND -> outFound[i]=false (not an error).
+// DeleteLocalRef per key is MANDATORY to avoid local-ref table overflow on
+// large batches (JNI local-ref capacity default is ~512).
+// ---------------------------------------------------------------------------
+JNIEXPORT void JNICALL
+Java_com_quickstore_QuickStore_nativeGetLongs(JNIEnv* env, jobject /*thiz*/,
+                                              jlong handle, jobjectArray keys,
+                                              jlongArray outValues,
+                                              jbooleanArray outFound) {
+    kv_store* store = reinterpret_cast<kv_store*>(handle);
+    const jsize n   = env->GetArrayLength(keys);
+
+    for (jsize i = 0; i < n; ++i) {
+        jstring key = static_cast<jstring>(env->GetObjectArrayElement(keys, i));
+        if (key == nullptr) {
+            jboolean f = JNI_FALSE;
+            env->SetBooleanArrayRegion(outFound, i, 1, &f);
+            continue;
+        }
+
+        const char* k = env->GetStringUTFChars(key, nullptr);
+        int64_t raw   = 0;
+        kv_status st  = kv_get_i64(store, k, &raw);
+        env->ReleaseStringUTFChars(key, k);
+        env->DeleteLocalRef(key); // MANDATORY — prevents local-ref table overflow on big batches
+
+        jboolean found;
+        if (st == KV_NOT_FOUND) {
+            found = JNI_FALSE;
+        } else if (st == KV_OK) {
+            jlong v = static_cast<jlong>(raw);
+            env->SetLongArrayRegion(outValues, i, 1, &v);
+            found = JNI_TRUE;
+        } else {
+            // Real error: throw and abort the whole batch.
+            throwIfError(env, st);
+            return;
+        }
+        env->SetBooleanArrayRegion(outFound, i, 1, &found);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// nativeGetBools(handle: Long, keys: String[], outValues: boolean[], outFound: boolean[])
+// One JNI frame; loops kv_get_bool. kv_get_bool writes int* (0/1) — convert to
+// jboolean per key. DeleteLocalRef per key MANDATORY (local-ref overflow guard).
+// ---------------------------------------------------------------------------
+JNIEXPORT void JNICALL
+Java_com_quickstore_QuickStore_nativeGetBools(JNIEnv* env, jobject /*thiz*/,
+                                              jlong handle, jobjectArray keys,
+                                              jbooleanArray outValues,
+                                              jbooleanArray outFound) {
+    kv_store* store = reinterpret_cast<kv_store*>(handle);
+    const jsize n   = env->GetArrayLength(keys);
+
+    for (jsize i = 0; i < n; ++i) {
+        jstring key = static_cast<jstring>(env->GetObjectArrayElement(keys, i));
+        if (key == nullptr) {
+            jboolean f = JNI_FALSE;
+            env->SetBooleanArrayRegion(outFound, i, 1, &f);
+            continue;
+        }
+
+        const char* k = env->GetStringUTFChars(key, nullptr);
+        int raw       = 0;
+        kv_status st  = kv_get_bool(store, k, &raw);
+        env->ReleaseStringUTFChars(key, k);
+        env->DeleteLocalRef(key); // MANDATORY — prevents local-ref table overflow on big batches
+
+        jboolean found;
+        if (st == KV_NOT_FOUND) {
+            found = JNI_FALSE;
+        } else if (st == KV_OK) {
+            jboolean v = (raw != 0) ? JNI_TRUE : JNI_FALSE;
+            env->SetBooleanArrayRegion(outValues, i, 1, &v);
+            found = JNI_TRUE;
+        } else {
+            throwIfError(env, st);
+            return;
+        }
+        env->SetBooleanArrayRegion(outFound, i, 1, &found);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// nativeGetDoubles(handle: Long, keys: String[], outValues: double[], outFound: boolean[])
+// One JNI frame; loops kv_get_double. DeleteLocalRef per key MANDATORY.
+// ---------------------------------------------------------------------------
+JNIEXPORT void JNICALL
+Java_com_quickstore_QuickStore_nativeGetDoubles(JNIEnv* env, jobject /*thiz*/,
+                                                jlong handle, jobjectArray keys,
+                                                jdoubleArray outValues,
+                                                jbooleanArray outFound) {
+    kv_store* store = reinterpret_cast<kv_store*>(handle);
+    const jsize n   = env->GetArrayLength(keys);
+
+    for (jsize i = 0; i < n; ++i) {
+        jstring key = static_cast<jstring>(env->GetObjectArrayElement(keys, i));
+        if (key == nullptr) {
+            jboolean f = JNI_FALSE;
+            env->SetBooleanArrayRegion(outFound, i, 1, &f);
+            continue;
+        }
+
+        const char* k = env->GetStringUTFChars(key, nullptr);
+        double raw    = 0.0;
+        kv_status st  = kv_get_double(store, k, &raw);
+        env->ReleaseStringUTFChars(key, k);
+        env->DeleteLocalRef(key); // MANDATORY — prevents local-ref table overflow on big batches
+
+        jboolean found;
+        if (st == KV_NOT_FOUND) {
+            found = JNI_FALSE;
+        } else if (st == KV_OK) {
+            jdouble v = static_cast<jdouble>(raw);
+            env->SetDoubleArrayRegion(outValues, i, 1, &v);
+            found = JNI_TRUE;
+        } else {
+            throwIfError(env, st);
+            return;
+        }
+        env->SetBooleanArrayRegion(outFound, i, 1, &found);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// nativeSetLongs(handle: Long, keys: String[], values: long[])
+// Writes each key→value pair via kv_set_i64. DeleteLocalRef per key MANDATORY
+// to prevent local-ref table overflow on large batches (chunk size 500).
+// ---------------------------------------------------------------------------
+JNIEXPORT void JNICALL
+Java_com_quickstore_QuickStore_nativeSetLongs(JNIEnv* env, jobject /*thiz*/,
+                                              jlong handle, jobjectArray keys,
+                                              jlongArray values) {
+    kv_store* store = reinterpret_cast<kv_store*>(handle);
+    const jsize n   = env->GetArrayLength(keys);
+    jlong* vals     = env->GetLongArrayElements(values, nullptr);
+    for (jsize i = 0; i < n; ++i) {
+        jstring key = static_cast<jstring>(env->GetObjectArrayElement(keys, i));
+        if (key == nullptr) continue;
+        const char* k = env->GetStringUTFChars(key, nullptr);
+        kv_set_i64(store, k, static_cast<int64_t>(vals[i]));
+        env->ReleaseStringUTFChars(key, k);
+        env->DeleteLocalRef(key); // MANDATORY — prevents local-ref table overflow on big batches
+    }
+    env->ReleaseLongArrayElements(values, vals, JNI_ABORT);
+}
+
+// ---------------------------------------------------------------------------
+// nativeSetBools(handle: Long, keys: String[], values: boolean[])
+// Writes each key→value pair via kv_set_bool (0/1 int). DeleteLocalRef MANDATORY.
+// ---------------------------------------------------------------------------
+JNIEXPORT void JNICALL
+Java_com_quickstore_QuickStore_nativeSetBools(JNIEnv* env, jobject /*thiz*/,
+                                              jlong handle, jobjectArray keys,
+                                              jbooleanArray values) {
+    kv_store* store  = reinterpret_cast<kv_store*>(handle);
+    const jsize n    = env->GetArrayLength(keys);
+    jboolean* vals   = env->GetBooleanArrayElements(values, nullptr);
+    for (jsize i = 0; i < n; ++i) {
+        jstring key = static_cast<jstring>(env->GetObjectArrayElement(keys, i));
+        if (key == nullptr) continue;
+        const char* k = env->GetStringUTFChars(key, nullptr);
+        kv_set_bool(store, k, vals[i] ? 1 : 0);
+        env->ReleaseStringUTFChars(key, k);
+        env->DeleteLocalRef(key); // MANDATORY — prevents local-ref table overflow on big batches
+    }
+    env->ReleaseBooleanArrayElements(values, vals, JNI_ABORT);
+}
+
+// ---------------------------------------------------------------------------
+// nativeSetDoubles(handle: Long, keys: String[], values: double[])
+// Writes each key→value pair via kv_set_double. DeleteLocalRef MANDATORY.
+// ---------------------------------------------------------------------------
+JNIEXPORT void JNICALL
+Java_com_quickstore_QuickStore_nativeSetDoubles(JNIEnv* env, jobject /*thiz*/,
+                                                jlong handle, jobjectArray keys,
+                                                jdoubleArray values) {
+    kv_store* store = reinterpret_cast<kv_store*>(handle);
+    const jsize n   = env->GetArrayLength(keys);
+    jdouble* vals   = env->GetDoubleArrayElements(values, nullptr);
+    for (jsize i = 0; i < n; ++i) {
+        jstring key = static_cast<jstring>(env->GetObjectArrayElement(keys, i));
+        if (key == nullptr) continue;
+        const char* k = env->GetStringUTFChars(key, nullptr);
+        kv_set_double(store, k, static_cast<double>(vals[i]));
+        env->ReleaseStringUTFChars(key, k);
+        env->DeleteLocalRef(key); // MANDATORY — prevents local-ref table overflow on big batches
+    }
+    env->ReleaseDoubleArrayElements(values, vals, JNI_ABORT);
+}
+
 } // extern "C"

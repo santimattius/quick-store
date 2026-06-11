@@ -2,3 +2,4 @@ headers = quickstore/kv_store.h
 package = quickstore.cinterop
 staticLibraries = libquickstore_core.a
 compilerOpts = -I../../../../core/include
+linkerOpts = -lz

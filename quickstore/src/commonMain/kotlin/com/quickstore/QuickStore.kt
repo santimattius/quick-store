@@ -16,4 +16,22 @@ expect class QuickStore(mmkvId: String, rootDir: String) : AutoCloseable {
     fun trim()
     fun clear()
     override fun close()
+
+    @ExperimentalQuickStoreApi
+    fun batchGetLongs(keys: List<String>): Map<String, Long?>
+
+    @ExperimentalQuickStoreApi
+    fun batchGetBools(keys: List<String>): Map<String, Boolean?>
+
+    @ExperimentalQuickStoreApi
+    fun batchGetDoubles(keys: List<String>): Map<String, Double?>
+
+    @ExperimentalQuickStoreApi
+    fun batchSetLongs(pairs: Map<String, Long>)
+
+    @ExperimentalQuickStoreApi
+    fun batchSetBools(pairs: Map<String, Boolean>)
+
+    @ExperimentalQuickStoreApi
+    fun batchSetDoubles(pairs: Map<String, Double>)
 }

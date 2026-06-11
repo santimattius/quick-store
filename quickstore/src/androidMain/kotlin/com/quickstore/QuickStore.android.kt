@@ -73,6 +73,90 @@ actual class QuickStore actual constructor(
         }
     }
 
+    @ExperimentalQuickStoreApi
+    actual fun batchGetLongs(keys: List<String>): Map<String, Long?> {
+        if (keys.isEmpty()) return emptyMap()
+        val result = LinkedHashMap<String, Long?>(keys.size)
+        keys.chunked(500).forEach { chunk ->
+            val arr = chunk.toTypedArray()
+            val outValues = LongArray(arr.size)
+            val outFound = BooleanArray(arr.size)
+            nativeGetLongs(_handle, arr, outValues, outFound)
+            arr.forEachIndexed { i, key ->
+                result[key] = if (outFound[i]) outValues[i] else null
+            }
+        }
+        return result
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchGetBools(keys: List<String>): Map<String, Boolean?> {
+        if (keys.isEmpty()) return emptyMap()
+        val result = LinkedHashMap<String, Boolean?>(keys.size)
+        keys.chunked(500).forEach { chunk ->
+            val arr = chunk.toTypedArray()
+            val outValues = BooleanArray(arr.size)
+            val outFound = BooleanArray(arr.size)
+            nativeGetBools(_handle, arr, outValues, outFound)
+            arr.forEachIndexed { i, key ->
+                result[key] = if (outFound[i]) outValues[i] else null
+            }
+        }
+        return result
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchGetDoubles(keys: List<String>): Map<String, Double?> {
+        if (keys.isEmpty()) return emptyMap()
+        val result = LinkedHashMap<String, Double?>(keys.size)
+        keys.chunked(500).forEach { chunk ->
+            val arr = chunk.toTypedArray()
+            val outValues = DoubleArray(arr.size)
+            val outFound = BooleanArray(arr.size)
+            nativeGetDoubles(_handle, arr, outValues, outFound)
+            arr.forEachIndexed { i, key ->
+                result[key] = if (outFound[i]) outValues[i] else null
+            }
+        }
+        return result
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchSetLongs(pairs: Map<String, Long>) {
+        if (pairs.isEmpty()) return
+        pairs.entries.chunked(500).forEach { chunk ->
+            nativeSetLongs(
+                _handle,
+                chunk.map { it.key }.toTypedArray(),
+                chunk.map { it.value }.toLongArray()
+            )
+        }
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchSetBools(pairs: Map<String, Boolean>) {
+        if (pairs.isEmpty()) return
+        pairs.entries.chunked(500).forEach { chunk ->
+            nativeSetBools(
+                _handle,
+                chunk.map { it.key }.toTypedArray(),
+                chunk.map { it.value }.toBooleanArray()
+            )
+        }
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchSetDoubles(pairs: Map<String, Double>) {
+        if (pairs.isEmpty()) return
+        pairs.entries.chunked(500).forEach { chunk ->
+            nativeSetDoubles(
+                _handle,
+                chunk.map { it.key }.toTypedArray(),
+                chunk.map { it.value }.toDoubleArray()
+            )
+        }
+    }
+
     // JNI externals
     private external fun nativeOpen(mmkvId: String, rootDir: String): Long
     private external fun nativeClose(handle: Long)
@@ -90,4 +174,25 @@ actual class QuickStore actual constructor(
     private external fun nativeAllKeys(handle: Long): Array<String>
     private external fun nativeTrim(handle: Long)
     private external fun nativeClear(handle: Long)
+    private external fun nativeGetLongs(
+        handle: Long,
+        keys: Array<String>,
+        outValues: LongArray,
+        outFound: BooleanArray
+    )
+    private external fun nativeGetBools(
+        handle: Long,
+        keys: Array<String>,
+        outValues: BooleanArray,
+        outFound: BooleanArray
+    )
+    private external fun nativeGetDoubles(
+        handle: Long,
+        keys: Array<String>,
+        outValues: DoubleArray,
+        outFound: BooleanArray
+    )
+    private external fun nativeSetLongs(handle: Long, keys: Array<String>, values: LongArray)
+    private external fun nativeSetBools(handle: Long, keys: Array<String>, values: BooleanArray)
+    private external fun nativeSetDoubles(handle: Long, keys: Array<String>, values: DoubleArray)
 }

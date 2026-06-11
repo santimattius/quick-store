@@ -48,6 +48,8 @@ dependencies {
 
 Make sure `mavenCentral()` is in your repository list.
 
+> **Native bridge**: QuickStore ships its JNI layer as a separate artifact (`quickstore-native`). Gradle resolves it automatically as a transitive dependency — you do not need to declare it explicitly. Both artifacts are versioned together and published simultaneously.
+
 ### iOS (Swift Package Manager)
 
 In Xcode: **File > Add Package Dependencies**, enter the URL:
@@ -247,6 +249,7 @@ let count = store.getLong(key: "count")  // Int64?
 - **No change listeners**: `registerOnSharedPreferenceChangeListener` / `unregisterOnSharedPreferenceChangeListener` throw `UnsupportedOperationException`. The frozen C++ core has no notification hook.
 - **`commit()` == `apply()`**: Both are synchronous. `commit()` always returns `true`. There is no deferred write queue.
 - **`QuickStoreFactory` does not exist**: The library does not ship a factory object. Instantiate `QuickStore(mmkvId, rootDir)` directly.
+- **Two artifacts must be published together**: Each release must publish both `io.github.santimattius:quickstore` and `io.github.santimattius:quickstore-native` at the same version. The main artifact's POM declares `quickstore-native` as a transitive dependency; publishing only one will cause a resolution failure for consumers.
 
 ---
 

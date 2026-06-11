@@ -28,15 +28,22 @@ struct ContentView: View {
             }
 
             if !runner.quickStoreResult.isEmpty {
-                GroupBox(label: Text("QuickStore").bold()) {
+                GroupBox(label: Text("Writes").bold()) {
                     Text(runner.quickStoreResult)
                         .font(.system(.body, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(4)
                 }
 
-                GroupBox(label: Text("UserDefaults").bold()) {
+                GroupBox(label: Text("Reads").bold()) {
                     Text(runner.userDefaultsResult)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(4)
+                }
+
+                GroupBox(label: Text("MMKV").bold()) {
+                    Text(runner.mmkvResult)
                         .font(.system(.body, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(4)

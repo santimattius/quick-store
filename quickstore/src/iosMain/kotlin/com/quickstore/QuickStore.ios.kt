@@ -133,6 +133,84 @@ actual class QuickStore actual constructor(
         result
     }
 
+    @ExperimentalQuickStoreApi
+    actual fun batchGetLongs(keys: List<String>): Map<String, Long?> {
+        if (keys.isEmpty()) return emptyMap()
+        val result = LinkedHashMap<String, Long?>(keys.size)
+        keys.chunked(500).forEach { chunk ->
+            memScoped {
+                val out = alloc<LongVar>()
+                chunk.forEach { key ->
+                    val st = kv_get_i64(handle, key, out.ptr)
+                    result[key] = if (st == KV_NOT_FOUND) null else out.value
+                }
+            }
+        }
+        return result
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchGetBools(keys: List<String>): Map<String, Boolean?> {
+        if (keys.isEmpty()) return emptyMap()
+        val result = LinkedHashMap<String, Boolean?>(keys.size)
+        keys.chunked(500).forEach { chunk ->
+            memScoped {
+                val out = alloc<IntVar>()
+                chunk.forEach { key ->
+                    val st = kv_get_bool(handle, key, out.ptr)
+                    result[key] = if (st == KV_NOT_FOUND) null else out.value != 0
+                }
+            }
+        }
+        return result
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchGetDoubles(keys: List<String>): Map<String, Double?> {
+        if (keys.isEmpty()) return emptyMap()
+        val result = LinkedHashMap<String, Double?>(keys.size)
+        keys.chunked(500).forEach { chunk ->
+            memScoped {
+                val out = alloc<DoubleVar>()
+                chunk.forEach { key ->
+                    val st = kv_get_double(handle, key, out.ptr)
+                    result[key] = if (st == KV_NOT_FOUND) null else out.value
+                }
+            }
+        }
+        return result
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchSetLongs(pairs: Map<String, Long>) {
+        if (pairs.isEmpty()) return
+        pairs.entries.chunked(500).forEach { chunk ->
+            memScoped {
+                chunk.forEach { (key, value) -> kv_set_i64(handle, key, value) }
+            }
+        }
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchSetBools(pairs: Map<String, Boolean>) {
+        if (pairs.isEmpty()) return
+        pairs.entries.chunked(500).forEach { chunk ->
+            memScoped {
+                chunk.forEach { (key, value) -> kv_set_bool(handle, key, if (value) 1 else 0) }
+            }
+        }
+    }
+
+    @ExperimentalQuickStoreApi
+    actual fun batchSetDoubles(pairs: Map<String, Double>) {
+        if (pairs.isEmpty()) return
+        pairs.entries.chunked(500).forEach { chunk ->
+            memScoped {
+                chunk.forEach { (key, value) -> kv_set_double(handle, key, value) }
+            }
+        }
+    }
+
     actual fun trim() {
         kv_trim(handle)
     }
