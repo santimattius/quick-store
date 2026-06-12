@@ -37,5 +37,15 @@ class FakeQuickStore(val mmkvId: String, val rootDir: String) : AutoCloseable {
 
     fun trim() {}
     fun clear() { bools.clear(); longs.clear(); doubles.clear(); bytes.clear() }
+
+    @ExperimentalQuickStoreApi
+    fun batchSetLongs(pairs: Map<String, Long>) { longs.putAll(pairs) }
+
+    @ExperimentalQuickStoreApi
+    fun batchSetBools(pairs: Map<String, Boolean>) { bools.putAll(pairs) }
+
+    @ExperimentalQuickStoreApi
+    fun batchSetDoubles(pairs: Map<String, Double>) { doubles.putAll(pairs) }
+
     override fun close() {}
 }
