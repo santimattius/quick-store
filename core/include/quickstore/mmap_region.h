@@ -6,10 +6,17 @@
 
 namespace quickstore {
 
-enum class AccessMode { ReadOnly, ReadWrite };
+enum class AccessMode {
+    ReadOnly,   // File must exist. Writing via mutableBase() is undefined behavior (SIGSEGV).
+    ReadWrite,  // Creates the file if absent. Supports grow().
+};
 
 class MmapRegion {
 public:
+    /* Memory-maps the whole file at path for the given access mode. ReadWrite creates
+       the file if absent but does NOT size it — the file must already have non-zero
+       length (callers pre-size via ftruncate). Returns nullopt on open/fstat/ftruncate/mmap
+       failure or when the file size is zero. Keeps the fd open for later grow(). */
     [[nodiscard]] static std::optional<MmapRegion>
     open(const std::string& path, AccessMode mode);
 

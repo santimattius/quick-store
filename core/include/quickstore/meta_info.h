@@ -7,16 +7,26 @@
 
 namespace quickstore {
 
+/* On-disk header stored in the companion ".crc" file (first 112 bytes).
+   Mirrors MMKV's layout byte-for-byte so files stay interoperable. Fields are
+   read/written at FIXED little-endian offsets (see static_asserts), independent
+   of compiler struct padding. */
 struct MMKVMetaInfo {
-    uint32_t m_crcDigest;
-    uint32_t m_version;
-    uint32_t m_sequence;
-    uint8_t  m_vector[16];
-    uint32_t m_actualSize;
-    uint32_t lastConfirmedActualSize;
-    uint32_t lastConfirmedCRCDigest;
-    uint8_t  _reserved[64];
-    uint64_t m_flags;
+    uint32_t m_crcDigest;              // off 0:  CRC32 of the live data region [base+4, base+4+m_actualSize). Guards against corruption.
+    uint32_t m_version;                // off 4:  Format version. Known values:
+                                       //   1 = Sequence  (write-back counter added)
+                                       //   2 = RandomIV  (AES IV stored in m_vector)
+                                       //   3 = ActualSize (m_actualSize is authoritative; supersedes bytes [0,4))
+                                       //   4 = Flag       (m_flags field active)
+                                       // The writer emits 4; the reader handles 1–4.
+    uint32_t m_sequence;               // off 8:  Full write-back counter; incremented on every doFullWriteBack, never on plain appends.
+    uint8_t  m_vector[16];             // off 12: AES-CFB IV; random per full write-back. Active when m_version >= 2 (RandomIV).
+    uint32_t m_actualSize;             // off 28: Authoritative data region size (bytes from offset 4). Active when m_version >= 3.
+                                       // Supersedes the oldStyleActualSize stored at bytes [0,4) of the data file.
+    uint32_t lastConfirmedActualSize;  // off 32: Last m_actualSize known to be CRC-consistent; used to roll back a torn/partial write.
+    uint32_t lastConfirmedCRCDigest;   // off 36: CRC matching lastConfirmedActualSize; the known-good recovery point.
+    uint8_t  _reserved[64];            // off 40: Reserved padding for MMKV layout compatibility; always zero, never serialized.
+    uint64_t m_flags;                  // off 104: Feature flags. Bit 0 = EnableKeyExpire (per-key TTL active).
 };
 
 static_assert(sizeof(MMKVMetaInfo) == 112,                            "MMKVMetaInfo size mismatch");

@@ -5,8 +5,17 @@
 
 namespace quickstore {
 
-enum class LockType { SharedLock, ExclusiveLock };
+enum class LockType {
+    SharedLock,    // Allows concurrent readers; maps to LOCK_SH.
+    ExclusiveLock  // Exclusive write access; maps to LOCK_EX.
+};
 
+/* Reentrant wrapper around flock(2) for one open file descriptor. Tracks shared
+   and exclusive lock counts so nested lock()/unlock() calls in the same process
+   do not deadlock and the OS lock is taken once and released only when the last
+   holder unlocks. flock(2) is per-open-file-description, so distinct fds across
+   processes still enforce mutual exclusion. Non-copyable, non-movable: the lock
+   state is tied to m_fd's lifetime. */
 class FileLock {
 public:
     explicit FileLock(int fd) noexcept : m_fd(fd) {}
@@ -21,8 +30,13 @@ public:
     FileLock(FileLock&&)                 = delete;
     FileLock& operator=(FileLock&&)      = delete;
 
+    // Acquires the lock, BLOCKING until granted. Reentrant: nested calls bump a counter. An exclusive holder already satisfies a shared request. Promotion shared->exclusive briefly releases the OS lock (a peer may interleave in that window). Returns false only on flock failure (e.g. bad fd).
+    // The underlying kernel lock (flock) is acquired only on the first call; subsequent
+    // reentrant calls increment the reference count without a syscall.
     [[nodiscard]] bool lock(LockType type) noexcept;
+    // Non-blocking variant of lock(). Returns false immediately if the lock is unavailable. On a failed shared->exclusive promotion it best-effort re-acquires the shared lock before returning false.
     [[nodiscard]] bool tryLock(LockType type) noexcept;
+    // Decrements the matching counter; releases the OS lock only when both counts reach zero. Releasing exclusive while a shared count remains DOWNGRADES to a shared lock. No-op if the matching count is already zero.
     void unlock(LockType type) noexcept;
 
 private:

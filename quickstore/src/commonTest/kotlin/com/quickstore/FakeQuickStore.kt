@@ -2,6 +2,16 @@ package com.quickstore
 
 expect fun createTestStore(): QuickStore
 
+/**
+ * An in-memory test double for [QuickStore], for use in unit tests without
+ * touching native storage. Backed by plain maps; [trim] is a no-op and [close]
+ * does nothing.
+ *
+ * NOT SHIPPED: this class lives in `commonTest` and is excluded from the
+ * published AAR and XCFramework. Consumers writing their own tests should COPY
+ * this file into their test source set — it cannot be imported from the
+ * QuickStore dependency.
+ */
 class FakeQuickStore(val mmkvId: String, val rootDir: String) : AutoCloseable {
 
     private val bools   = LinkedHashMap<String, Boolean>()

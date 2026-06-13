@@ -64,13 +64,36 @@ class QuickStoreSharedPreferences(private val store: QuickStore) : SharedPrefere
     // Unsupported operations
     // -------------------------------------------------------------------------
 
+    /**
+     * Not supported — throws [UnsupportedOperationException].
+     *
+     * The QuickStore C ABI has no multi-value encoding; string sets cannot be
+     * represented without an additional serialization layer.
+     * Use [putString] with JSON serialization as an alternative.
+     * @return never returns normally.
+     * @throws UnsupportedOperationException always.
+     */
     override fun getStringSet(key: String, defValues: MutableSet<String>?): MutableSet<String>? =
         throw UnsupportedOperationException("Not supported by QuickStore")
 
+    /**
+     * Not supported — throws [UnsupportedOperationException].
+     *
+     * The frozen C++ core has no notification hook; change listeners cannot be registered.
+     * @param listener the listener that would be registered (ignored).
+     * @throws UnsupportedOperationException always.
+     */
     override fun registerOnSharedPreferenceChangeListener(
         listener: SharedPreferences.OnSharedPreferenceChangeListener
     ): Unit = throw UnsupportedOperationException("Not supported by QuickStore")
 
+    /**
+     * Not supported — throws [UnsupportedOperationException].
+     *
+     * The frozen C++ core has no notification hook; change listeners cannot be unregistered.
+     * @param listener the listener that would be unregistered (ignored).
+     * @throws UnsupportedOperationException always.
+     */
     override fun unregisterOnSharedPreferenceChangeListener(
         listener: SharedPreferences.OnSharedPreferenceChangeListener
     ): Unit = throw UnsupportedOperationException("Not supported by QuickStore")
@@ -81,6 +104,16 @@ class QuickStoreSharedPreferences(private val store: QuickStore) : SharedPrefere
 
     override fun edit(): SharedPreferences.Editor = Editor()
 
+    /**
+     * Adapts [SharedPreferences.Editor] to the QuickStore backend.
+     *
+     * All mutations are buffered in memory and applied atomically to the underlying
+     * [QuickStore] instance when [commit] or [apply] is called. Per the
+     * [SharedPreferences] contract, [clear] is executed before any pending puts
+     * within the same editor batch.
+     *
+     * @throws UnsupportedOperationException for [putStringSet] — not supported by the QuickStore C ABI.
+     */
     inner class Editor : SharedPreferences.Editor {
 
         private val pending = LinkedHashMap<String, Any?>()
@@ -89,36 +122,65 @@ class QuickStoreSharedPreferences(private val store: QuickStore) : SharedPrefere
         // Sentinel value to distinguish an explicit remove from an absent key.
         private val REMOVE = object {}
 
+        /**
+         * Schedules a string write for [key]. A `null` [value] is treated as a remove
+         * per the [SharedPreferences] contract.
+         * @return this editor, for chaining.
+         */
         override fun putString(key: String, value: String?): SharedPreferences.Editor {
             pending[key] = value
             return this
         }
 
+        /**
+         * Schedules an integer write for [key].
+         * @return this editor, for chaining.
+         */
         override fun putInt(key: String, value: Int): SharedPreferences.Editor {
             pending[key] = value
             return this
         }
 
+        /**
+         * Schedules a long write for [key].
+         * @return this editor, for chaining.
+         */
         override fun putLong(key: String, value: Long): SharedPreferences.Editor {
             pending[key] = value
             return this
         }
 
+        /**
+         * Schedules a float write for [key].
+         * @return this editor, for chaining.
+         */
         override fun putFloat(key: String, value: Float): SharedPreferences.Editor {
             pending[key] = value
             return this
         }
 
+        /**
+         * Schedules a boolean write for [key].
+         * @return this editor, for chaining.
+         */
         override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor {
             pending[key] = value
             return this
         }
 
+        /**
+         * Schedules the removal of [key]. Takes effect on [commit] or [apply].
+         * @return this editor, for chaining.
+         */
         override fun remove(key: String): SharedPreferences.Editor {
             pending[key] = REMOVE
             return this
         }
 
+        /**
+         * Schedules a full store clear. Executed before any pending puts on [commit] or [apply].
+         * @return this editor, for chaining.
+         */
         override fun clear(): SharedPreferences.Editor {
             clearRequested = true
             return this
@@ -143,6 +205,12 @@ class QuickStoreSharedPreferences(private val store: QuickStore) : SharedPrefere
             flush()
         }
 
+        /**
+         * Not supported — throws [UnsupportedOperationException].
+         *
+         * The QuickStore C ABI has no multi-value encoding.
+         * @throws UnsupportedOperationException always.
+         */
         override fun putStringSet(key: String, values: MutableSet<String>?): SharedPreferences.Editor =
             throw UnsupportedOperationException("Not supported by QuickStore")
 
