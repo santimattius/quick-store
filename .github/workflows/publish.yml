@@ -2,7 +2,10 @@ name: Publish
 on:
   push:
     tags: ['v*.*.*']
-
+# Give the workflow permission to update repository contents (required for git push)
+permissions:
+  contents: write
+  
 jobs:
   publish:
     runs-on: macos-latest
