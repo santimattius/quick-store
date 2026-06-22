@@ -18,8 +18,10 @@ jobs:
         run: brew install cmake
 
       # ---------- iOS / XCFramework ----------
-      - name: Build XCFramework
-        run: ./gradlew :quickstore:assembleQuickStoreReleaseXCFramework
+      - name: Build artifacts
+        run: |
+          ./gradlew :quickstore-native:assembleRelease \
+                    :quickstore:assembleQuickStoreReleaseXCFramework
 
       - name: Zip XCFramework
         run: |
