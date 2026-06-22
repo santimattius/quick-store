@@ -328,7 +328,7 @@ For tests, a `FakeQuickStore` in-memory double exists in the source tree under `
 ## License
 
 ```
-Copyright 2024 Santiago Mattiauda
+Copyright 2026 Santiago Mattiauda
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
