@@ -90,7 +90,7 @@ class QuickStoreBenchmark {
 
     @Test
     fun remove() = benchmarkRule.measureRepeated {
-        runWithMeasurementDisabled { store.setLong("removeKey", 1L) }
+        runWithTimingDisabled { store.setLong("removeKey", 1L) }
         store.remove("removeKey")
     }
 
