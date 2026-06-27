@@ -30,3 +30,4 @@ dependencyResolutionManagement {
 include(":quickstore")
 include(":quickstore-native")
 include(":sample-android")
+include(":benchmark")
