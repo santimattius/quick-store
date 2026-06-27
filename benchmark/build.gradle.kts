@@ -24,4 +24,6 @@ android {
 dependencies {
     androidTestImplementation(project(":quickstore"))
     androidTestImplementation(libs.benchmark.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
